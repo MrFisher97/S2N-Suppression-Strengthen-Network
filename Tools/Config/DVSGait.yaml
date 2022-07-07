@@ -1,0 +1,41 @@
+Data:
+  root: /data/wan97/DVSDatasets/DVSGait/
+  data_file: C36W03.h5
+  map_file: map.csv
+  scene: all # 'l0'. 'l4', 'l16', 'l64', 'all'
+  num_samples: null # 1000
+  enhance_samples: 500 # 1000
+  num_classes: 36
+  form: Clip
+  num_point: 1024
+  clip_size: [2, 5, 346, 260] # CxTxHxW
+  vox_size: [2, 5, 260, 346] # CxTxHxW
+  split_by: time # just for clip
+  ord: txyp
+
+Model:
+  name: Co_Model_3D #'i3d', 'pointnet2_msg', 'Co_Model_3D', 'Co_Model_2D', 'resnet34', 'resnet3d', 'gait2d', 'gait3d'
+  nIter: 1
+  noise: 3
+  enhance: False
+  enhance_checkpoint: 'Log/Enhance/Zero_Enhance/10121851/checkpoint.pkl'
+
+Train:
+  lr: 1.e-4
+  weight_decay: 1.e-4
+  num_epochs: 25
+  batch_size: 16
+  shuffle: True
+  num_workers: 4
+  drop_last: True
+
+Test:
+  batch_size: 16
+  scenes: ['l0', 'l4', 'l16', 'l64', 'all']
+
+Recorder:
+  log_dir: 'output'
+  save_log: True
+  show_visdom: False
+  show_tensorboard: False
+
