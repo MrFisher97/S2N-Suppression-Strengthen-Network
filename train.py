@@ -229,8 +229,6 @@ if __name__ == '__main__':
             key, item = i.split('=')
             if '.' in key:
                 config[key.split[0].strip()][key.split[1].strip()] = item.strip()
-
-
     # exit(0)
 
     try:
