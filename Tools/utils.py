@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 import importlib
+import json
 
 class Session():
     def __init__(self, config):
@@ -24,7 +25,6 @@ class Session():
         if recorder['save_log']:
             self.log_dir = os.path.join(recorder['log_dir'], timestamp)
             os.makedirs(self.log_dir, exist_ok=True)
-            os.system(f"cp -n Tools/Config/{self.config['Data']['dataset']}.yaml {self.log_dir}")
             log_file = os.path.join(self.log_dir, 'logger.txt')
             fh = logging.FileHandler(filename=log_file)
             fh.setFormatter(logging.Formatter("%(asctime)s : %(message)s", "%b%d-%H:%M"))
@@ -41,6 +41,7 @@ class Session():
         self.writer = SummaryWriter('Runs') if recorder['show_tensorboard'] else None
         
         self._build_model()
+        self.logger.info(json.dumps(self.config, indent=4, separators=(',', ': ')))
 
     def _build_model(self):
         torch.backends.cudnn.benchmark = True

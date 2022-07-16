@@ -4,9 +4,9 @@ import torch.nn.functional as F
 from pointnet_utils import PointNetSetAbstractionMsg, PointNetSetAbstraction
 
 
-class Model(nn.Module):
+class Pointnet2_msg(nn.Module):
     def __init__(self, num_classes=10, seq_len = 1, normal_channel = False, return_fps=False, **kwargs):
-        super(Model, self).__init__()
+        super(Pointnet2_msg, self).__init__()
         in_channel = 3 if normal_channel else 0
         self.normal_channel = normal_channel
         self.sa1 = PointNetSetAbstractionMsg(512, [0.1, 0.2, 0.4], [16, 32, 128], in_channel,[[32, 32, 64], [64, 64, 128], [64, 96, 128]])
@@ -35,6 +35,7 @@ class Model(nn.Module):
             norm = xyz[:, 3:, :]
             xyz = xyz[:, :3, :]
         else:
+            xyz = xyz[:, :3, :]
             norm = None
 
         l1_xyz, l1_points, l1_fps_idx = self.sa1(xyz, norm)
@@ -56,6 +57,15 @@ class get_loss(nn.Module):
     def __init__(self):
         super(get_loss, self).__init__()
 
-    def forward(self, pred, target, trans_feat):
+    def forward(self, pred, target):
         total_loss = F.nll_loss(pred, target)
         return total_loss
+
+class Model(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.model = Pointnet2_msg(num_classes=config["Data"]["num_classes"])
+
+    def forward(self, x):
+        x = x.transpose(2, 1)
+        return self.model(x)

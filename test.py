@@ -7,21 +7,37 @@ import numpy as np
 import torch
 import importlib
 import argparse
-import yaml
+import json
 import Tools.utils as utils
+import logging
 
 class Test_Session(utils.Session):
-    def build_log(self):        
+    def build_log(self):
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+        if not logger.handlers:
+            logger.addHandler(logging.StreamHandler())
+        self.logger = logger   
         self._build_model()
 
     def _build_model(self):
         super()._build_model()
         self.net = importlib.import_module(f"Tools.Model.{self.config['Model']['name']}").Model(self.config)
         self.net = self.net.to(self.device)
-        self.net.load_state_dict(torch.load(os.path.join(self.log_dir, 'checkpoint.pkl')))
+        self.net.load_state_dict(torch.load(os.path.join(self.config['log_dir'], 'checkpoint.pkl')))
 
     @staticmethod
-    def generate_clip(self, data, size=(2, 16, 128, 128), ord='txyp'):
+    def generate_clip(data, size=(2, 16, 128, 128), ord='txyp'):
+        '''
+        Generate Clip
+        args:
+            -data: event stream
+            -size: size of generated clip (C, T, H, W)
+            -ord: ording of event stream (e.g. 'txyp')
+        output:
+            clip
+        '''
+
         t, x, y, p = np.split(data[:, (ord.find("t"), ord.find("x"), ord.find("y"), ord.find("p"))], 4, axis=1)
         C, T, H, W = size
 
@@ -52,7 +68,7 @@ class Test_Session(utils.Session):
             event = self.generate_clip(event, size=(2, 16, 128, 128), ord='txyp')
             event = torch.tensor(event[None, ...]).to(self.device)
             output = self.net(event)
-        pred = output['score'].max(1)[1].cpu()
+        pred = output.argmax().item()
         return pred
 
     def test_dataset(self, data_loader):
@@ -61,16 +77,17 @@ class Test_Session(utils.Session):
         time = utils.Time_Detector()
         class_pred = utils.Category_Detector(self.config['Data']['num_classes'])
         
-        for i, item in enumerate(data_loader, ncols=80):
+        for i, item in enumerate(data_loader):
             data = item['data'].to(self.device)
             output = self.net(data)
-            pred = output['score'].max(1)[1].cpu()
+            score = output['score'] if isinstance(output, dict) else output
+            pred = score.argmax(1).cpu()
 
             acc.update(pred.eq(item['label']).sum(), item['label'].size(0))
             time.update(item['label'].size(0))
             class_pred.update(pred, item['label'])
        
-        print(f"{self.config['Data']['scene']} : loss:{loss.avg:.3f}, acc:{acc.avg:.1%}, {time.avg:.6f}  seconds/batch")
+        # self.logger.info(f"{self.config['Data']['scene']} : loss:{loss.avg:.3f}, acc:{acc.avg:.1%}, {time.avg:.6f}  seconds/batch")
         return {'loss': loss.avg,
                 'acc':acc.avg,
                 'class_acc':class_pred.val,
@@ -82,22 +99,41 @@ class Test_Session(utils.Session):
             self.config['Data']['scene'] = scene
             test_loader = self._load_data('Test')
             test_result = self.test_dataset(test_loader)
-            print(f"@ {scene}, loss:{test_result['loss']:.3f}, acc:{test_result['acc']:.1%}, {test_result['time']:.6f}  seconds/batch")
+            self.logger.info(f"@ {scene}, loss:{test_result['loss']:.3f}, acc:{test_result['acc']:.1%}, {test_result['time']:.6f}  seconds/batch")
 
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser()
-    args.add_argument('--Dataset', type=str, default='DVSGesture')
-    args.add_argument('--log_dir', type=str, default='Output/05132237')
+    args.add_argument('--config', type=str, default='DVSGesture_i3d')
+    args.add_argument('--log_dir', type=str, default='Output_2/i3d_07101239')
     args = args.parse_args()
-    config = yaml.safe_load(open(f'{args.log_dir}/{args.Dataset}.yaml', 'r'))
-    config['Data']['dataset'] = args.Dataset
+    config = json.load(open(f"Tools/Config/{args.config}.json", 'r'))
     config['log_dir'] = args.log_dir
     # exit(0)
     sess = Test_Session(config)
-    sess.test()
-    sess.test_data()
-    sess.close()
+    for scene in ['fluorescent', 'fluorescent_led', 'natural', 'led', 'lab']:
+        sess.test(scene)
+
+    # import h5py
+    # import pandas as pd
+    # from tqdm import tqdm
+
+    # dataset = h5py.File('Dataset/DVSGesture/C11W05.h5')
+    # samples = pd.read_csv('Dataset/DVSGesture/test.csv', delimiter='\t')
+    # light = 'fluorescent_led'
+    # samples = samples[samples['light'] == light]
+    # samples = samples[samples['label'] < 10]
+    # samples = samples.reset_index(drop=True)
+    # label_map = pd.read_csv('Dataset/DVSGesture/map.csv', delimiter='\t')
+    # pred = []
+    # lable = []
+    # for i in tqdm(range(len(samples)), ncols=80):
+    #     sample = samples.loc[i]
+    #     data = dataset[sample['light']][str(sample['label'])][sample['user']][sample['num']]
+    #     data = np.stack([data[p] for p in 'txyp'], axis=-1).astype(float)
+    #     pred.append(sess.test_data(data) == int(sample['label']))
+    # print(light, len(pred), np.sum(pred) / len(pred))
+    # sess.close()
 
     # print model architecture
     # net = Model.Net(imsize=(256, 256), in_size=2, num_class=8)

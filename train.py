@@ -29,7 +29,7 @@ class Train_Session(utils.Session):
             {'params':self.net.parameters(), 'lr':train_config['lr'], 'weight_decay':train_config['weight_decay']},]
 
         # load the enhance subnet(NSN)
-        if model_config['enhance']:
+        if model_config.get('enhance', False):
             self.enhance_criterion = importlib.import_module('Tools.Model.Enhance.NSN').NSN_Loss()
             self.enhance_optimizer = torch.optim.Adam(self.net.enhance.parameters(), lr=1e-2, weight_decay=1e-4)
             param_list = [
@@ -37,7 +37,11 @@ class Train_Session(utils.Session):
                     {'params':self.net.backbone.parameters(), 'lr':train_config['lr'], 'weight_decay':train_config['weight_decay']}
             ]
 
+        # if 'pointnet' in model_config['name']:
+        #     self.criterion = importlib.import_module(f"Tools.Model.{model_config['name']}").get_loss()
+        # else:
         self.criterion = torch.nn.CrossEntropyLoss()
+
         self.optimizer = torch.optim.Adam(param_list)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.2, patience=2, min_lr=1e-5)
       
@@ -48,13 +52,16 @@ class Train_Session(utils.Session):
         with autocast():
             data, label = item['data'].to(self.device), item['label'].to(self.device)
             output = self.net(data)
-        loss = self.criterion(output['score'], label)
+            score = output['score'] if isinstance(output, dict) else output
+        loss = self.criterion(score, label)
 
-        pred = output['score'].max(1)[1]
+        pred = score.max(1)[1]
         if self.net.training:
+            # loss.backward()
             self.scaler.scale(loss).backward()
             self.scaler.step(self.optimizer)
             self.scaler.update()
+            # self.optimizer.step()
             self.optimizer.zero_grad()
 
         return {'loss':loss.cpu(), 'pred':pred.cpu()}
@@ -154,7 +161,7 @@ class Train_Session(utils.Session):
         self.scaler = GradScaler()
 
         # If train the S2N, we fisrt train the enhance net NSN
-        if self.config['Model']['enhance']:
+        if self.config['Model'].get('enhance', False):
             enhance_train_loader = self._load_data('Train', num_samples=self.config['Data']['enhance_samples'])
             enhance_test_loader = self._load_data('Test', num_samples=self.config['Data']['enhance_samples'])
 
@@ -211,10 +218,19 @@ class Train_Session(utils.Session):
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser()
-    args.add_argument('--config', type=str, default='DVSGesture_S2N')
-    args = args.parse_args()
+    args.add_argument('--config', type=str, default='DVSGesture_Pointnet')
+    args.add_argument('--override', default=None, help='Arguments for overriding config')
+    args = vars(args.parse_args())
     config = json.load(open(f"Tools/Config/{args['config']}.json", 'r'))
-    config['Data']['dataset'] = args.Dataset
+
+    if args['override'] is not None:
+        override = args['override'].split(',')
+        for i in override:
+            key, item = i.split('=')
+            if '.' in key:
+                config[key.split[0].strip()][key.split[1].strip()] = item.strip()
+
+
     # exit(0)
 
     try:

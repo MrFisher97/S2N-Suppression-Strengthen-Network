@@ -221,7 +221,7 @@ def farthest_point_sample(xyz, npoint):
     for i in range(npoint):
         centroids[:, i] = farthest 
         centroid = xyz[batch_indices, farthest, :].view(B, 1, 3)
-        dist = torch.sum((xyz - centroid) ** 2, -1)
+        dist = torch.sum((xyz - centroid) ** 2, -1).float()
         mask = dist < distance
         distance[mask] = dist[mask]
         farthest = torch.max(distance, -1)[1]
@@ -352,7 +352,7 @@ class PointNetSetAbstraction(nn.Module):
         for i, conv in enumerate(self.mlp_convs):
             bn = self.mlp_bns[i]
             act = self.mlp_act[i]
-            new_points = act(bn(conv(new_points)))
+            new_points = act(bn(conv(new_points.float())))
 
         new_points = torch.max(new_points, 2)[0]
         new_xyz = new_xyz.permute(0, 2, 1)
@@ -412,7 +412,7 @@ class PointNetSetAbstractionMsg(nn.Module):
             for j in range(len(self.conv_blocks[i])):
                 conv = self.conv_blocks[i][j]
                 bn = self.bn_blocks[i][j]
-                grouped_points =  F.relu(bn(conv(grouped_points)))
+                grouped_points =  F.relu(bn(conv(grouped_points.float())))
             new_points = torch.max(grouped_points, 2)[0]  # [B, D', S]
             new_points_list.append(new_points)
 

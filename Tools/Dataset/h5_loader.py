@@ -5,23 +5,36 @@ sys.path.append(BASE_DIR)
 
 import torch
 import torch.utils.data as data_utl
-from generator import Generator
 from sklearn.utils import resample
 from sklearn import preprocessing
 import pandas as pd
 # import h5py as h5
 import numpy as np
 
+def center_crop(stream, size=(128, 128), ord='txyp'):
+    xi, yi = ord.find('x'), ord.find('y')
+    max_x, min_x = np.max(stream[:, xi]), np.min(stream[:, xi])
+    max_y, min_y = np.max(stream[:, yi]), np.min(stream[:, yi])
+    
+    center_x = (max_x + min_x) // 2
+    center_y = (max_y + min_y) // 2
+    
+    x_boundary = (center_x - size[0] // 2, center_x + size[0] // 2)
+    y_boundary = (center_y - size[1] // 2, center_y + size[1] // 2)
+
+    stream = stream[(stream[:, xi] >= x_boundary[0]) & (stream[:, xi] < x_boundary[1])]
+    stream = stream[(stream[:, yi] >= y_boundary[0]) & (stream[:, yi] < y_boundary[1])]
+    stream[:, (xi, yi)] -= (x_boundary[0], y_boundary[0])
+    return stream
+
 class Base_Dataset(data_utl.Dataset):
-    def __init__(self, cfg, transforms=None, **kwargs):
+    def __init__(self, cfg, **kwargs):
         super().__init__()
         self._collect(cfg)
         self.dataset = cfg.get('dataset', 'DVSGait')
         self.num_point = cfg.get('num_point', None)
-        self.clip_size = cfg.get('clip_size', None)
-        self.vox_size = cfg.get('vox_size', None)
+        self.size = cfg.get('size', None)
         self.split_by = cfg.get('split_by', None)
-        self.transforms = transforms
  
     def _collect(self, cfg):
         root = cfg.get('root', 'Dataset/DVSGait/')
@@ -52,8 +65,9 @@ class Base_Dataset(data_utl.Dataset):
             data = self.data[sample['light']][sample['obj']][sample['num']]
         
         data = np.stack([data[p] for p in self.ord], axis=-1).astype(float)
-        if self.transforms is not None:
-            data = self.transforms(data)
+        
+        # data = center_crop(data, size=self.size[-2:], ord=self.ord)
+        
         data[:, 0] = preprocessing.minmax_scale(data[:, 0])
         return data, sample['label']
 
@@ -96,21 +110,7 @@ class Clip(Base_Dataset):
                         out=np.zeros_like(clip),
                         where=clip!=0)
 
-        return {'data':torch.tensor(clip),
-                'label':label}
-
-class Voxel(Base_Dataset):
-    def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-
-        Returns:
-            tuple: (image, target) where target is class_index of the target class.
-        """
-        data, label = super().__getitem__(index)
-        vox = Generator.generate_voxel(data, ord=self.ord, vox_size=self.vox_size)
-        return {'data':torch.tensor(vox),
+        return {'data':torch.tensor(clip, dtype=torch.float),
                 'label':label}
 
 class Point(Base_Dataset):
@@ -123,10 +123,12 @@ class Point(Base_Dataset):
             tuple: (image, target) where target is class_index of the target class.
         """
         data, label = super().__getitem__(index)
-        data = resample(data, n_samples = self.num_point, random_state=2022)
-        data[:, 0] = preprocessing.minmax_scale(data[:, 0])
-        return {'data':torch.tensor(data).to(self.device),
-                'label':label.to(self.device)}
+        if self.num_point:
+            idx = np.random.choice(data.shape[0], size = self.num_point, replace = False)
+            data = data[idx]
+        # data = resample(data, n_samples = self.num_point, random_state=2022)
+        return {'data':torch.tensor(data),
+                'label':label}
 
 # Test class
 if __name__ == '__main__':

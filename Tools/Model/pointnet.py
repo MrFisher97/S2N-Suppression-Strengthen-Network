@@ -3,9 +3,9 @@ import torch.utils.data
 import torch.nn.functional as F
 from pointnet_utils import PointNetEncoder, feature_transform_reguliarzer
 
-class Model(nn.Module):
-    def __init__(self, num_classes=10, normal_channel=True):
-        super(Model, self).__init__()
+class Pointnet(nn.Module):
+    def __init__(self, num_classes=10, normal_channel=False):
+        super(Pointnet, self).__init__()
         if normal_channel:
             channel = 6
         else:
@@ -20,20 +20,31 @@ class Model(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x):
-        x, trans, trans_feat = self.feat(x)
+        x, trans, trans_feat = self.feat(x.float())
         x = F.relu(self.bn1(self.fc1(x)))
         x = F.relu(self.bn2(self.dropout(self.fc2(x))))
         x = self.fc3(x)
-        return x, trans_feat
+        # x = F.log_softmax(x, dim=1)
+        return x
 
 class get_loss(torch.nn.Module):
     def __init__(self, mat_diff_loss_scale=0.001):
         super(get_loss, self).__init__()
         self.mat_diff_loss_scale = mat_diff_loss_scale
 
-    def forward(self, pred, target, trans_feat):
+    def forward(self, pred, target):
         loss = F.nll_loss(pred, target)
-        mat_diff_loss = feature_transform_reguliarzer(trans_feat)
+        # mat_diff_loss = feature_transform_reguliarzer(trans_feat)
 
-        total_loss = loss + mat_diff_loss * self.mat_diff_loss_scale
-        return total_loss
+        # total_loss = loss + mat_diff_loss * self.mat_diff_loss_scale
+        return loss
+
+class Model(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.model = Pointnet(num_classes=config["Data"]["num_classes"])
+
+    def forward(self, x):
+        x = x.transpose(2, 1)[:, :3]
+        x[:, (1, 2)] /= 127
+        return self.model(x)

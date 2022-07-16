@@ -29,7 +29,3 @@ class Model(nn.Module):
         data = self.fsn['EAM'](enhance)
         score = self.fsn['DCDC'](data)
         return {'score':score, 'enhance':enhance}
-
-
-        logitis = self.backbone(clip)
-        return logitis

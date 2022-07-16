@@ -142,7 +142,7 @@ class InceptionModule(nn.Module):
         return torch.cat([b0,b1,b2,b3], dim=1)
 
 
-class Model(nn.Module):
+class I3D(nn.Module):
     """Inception-v1 I3D architecture.
     The model is introduced in:
         Quo Vadis, Action Recognition? A New Model and the Kinetics Dataset
@@ -201,7 +201,7 @@ class Model(nn.Module):
         if final_endpoint not in self.VALID_ENDPOINTS:
             raise ValueError('Unknown final endpoint %s' % final_endpoint)
 
-        super(Model, self).__init__()
+        super(I3D, self).__init__()
         num_classes = config['Data'].get('num_classes', 10)
         in_channels = config['Model'].get('in_channels', 2)
         self._num_classes = num_classes
@@ -320,7 +320,7 @@ class Model(nn.Module):
 
         x = self.logits(self.dropout(self.avg_pool(x)))
         if self._spatial_squeeze:
-            logits = x.squeeze()
+            logits = x.squeeze(-1).squeeze(-1).squeeze(-1)
         # logits is batch X time X classes, which is what we want to work with
         return logits
 
@@ -329,3 +329,11 @@ class Model(nn.Module):
             if end_point in self.end_points:
                 x = self._modules[end_point](x)
         return self.avg_pool(x)
+
+class Model(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.model = I3D(config)
+    
+    def forward(self, x):
+        return self.model(x)
