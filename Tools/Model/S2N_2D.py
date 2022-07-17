@@ -22,10 +22,11 @@ class Model(nn.Module):
         )
 
 
-    def forward(self, clip):
+    def forward(self, x):
+        enhance = x
         if self.enhance:
             with torch.no_grad():
-                enhance, _ = self.nsn(enhance)
-        data = self.fsn['EAM'](enhance)
-        score = self.fsn['DCDC'](data)
+                enhance, _ = self.nsn(x)
+        x = self.fsn['EAM'](enhance)
+        score = self.fsn['DCDC'](x)
         return {'score':score, 'enhance':enhance}

@@ -8,7 +8,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
         num_classes = config['Data'].get('num_classes', 10)
         in_channels = config['Model'].get('in_channels', 2)
-        nIter = config['Model'].get('nIter', 3)
+        nIter = config['Model'].get('nIter', 1)
 
         self.nsn = NSN.Model(scale_factor=1, in_channels=in_channels) if config['Model']['enhance'] else None
         self.fsn = nn.ModuleDict(
@@ -19,14 +19,14 @@ class Model(nn.Module):
             }
         )
 
-    def forward(self, data):
-        B, C, T, H, W = data.size()
-        enhance = data.permute(0, 2, 1, 3, 4).reshape(-1, C, H, W)
-        if self.enhance:
+    def forward(self, x):
+        B, C, T, H, W = x.size()
+        enhance = x.permute(0, 2, 1, 3, 4).reshape(-1, C, H, W)
+        if self.nsn:
             with torch.no_grad():
                 enhance, _ = self.nsn(enhance)
-        data = self.fsn['EAM'](enhance)
-        data = data.reshape(B, T, C, H, W).permute(0, 2, 1, 3, 4)
+        x = self.fsn['EAM'](enhance)
+        x = x.reshape(B, T, C, H, W).permute(0, 2, 1, 3, 4)
 
-        score = self.fsn['DCDC'](data)
+        score = self.fsn['DCDC'](x)
         return {'score':score, 'enhance':enhance}

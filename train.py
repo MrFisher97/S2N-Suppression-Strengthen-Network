@@ -31,15 +31,12 @@ class Train_Session(utils.Session):
         # load the enhance subnet(NSN)
         if model_config.get('enhance', False):
             self.enhance_criterion = importlib.import_module('Tools.Model.Enhance.NSN').NSN_Loss()
-            self.enhance_optimizer = torch.optim.Adam(self.net.enhance.parameters(), lr=1e-2, weight_decay=1e-4)
+            self.enhance_optimizer = torch.optim.Adam(self.net.nsn.parameters(), lr=1e-2, weight_decay=1e-4)
             param_list = [
-                    {'params':self.net.filter.parameters(), 'lr':train_config['lr'], 'weight_decay':train_config['weight_decay']},
-                    {'params':self.net.backbone.parameters(), 'lr':train_config['lr'], 'weight_decay':train_config['weight_decay']}
+                    {'params':self.net.nsn.parameters(), 'lr':train_config['lr'], 'weight_decay':train_config['weight_decay']},
+                    {'params':self.net.fsn.parameters(), 'lr':train_config['lr'], 'weight_decay':train_config['weight_decay']}
             ]
 
-        # if 'pointnet' in model_config['name']:
-        #     self.criterion = importlib.import_module(f"Tools.Model.{model_config['name']}").get_loss()
-        # else:
         self.criterion = torch.nn.CrossEntropyLoss()
 
         self.optimizer = torch.optim.Adam(param_list)
@@ -97,18 +94,17 @@ class Train_Session(utils.Session):
         with autocast():
             data = item['data'].to(self.device)
 
-            if self.config['Model']['name'] == 'Co_Model_3D':
+            if len(data.size()) > 4:
                 B, T = data.size(0), data.size(2)
                 nframe = np.random.randint(0, T, size=B)
                 data = data.permute(0, 2, 1, 3, 4)
                 data = data[np.arange(B), nframe]
             
-            enhance_result, E = self.net.enhance(data)
+            enhance_result, E = self.net.nsn(data)
             enhance_loss = self.enhance_criterion(enhance_result, E, data)
             loss = enhance_loss['loss']['total']
-            mask = enhance_loss['mask']
 
-        if self.net.enhance.training:
+        if self.net.nsn.training:
             self.scaler.scale(loss).backward()
             self.scaler.step(self.enhance_optimizer)
             self.scaler.update()
@@ -117,36 +113,30 @@ class Train_Session(utils.Session):
         return enhance_loss['loss']
 
     def _enhance_train(self, train_loader, test_loader):
-        self.net.enhance.requires_grad_(True)
-        self.net.backbone.requires_grad_(False)
-        self.net.filter.requires_grad_(False)
+        self.net.nsn.requires_grad_(True)
+        self.net.fsn.requires_grad_(False)
         loss_dict = utils.Param_Dict()
         time = utils.Time_Detector()
 
         for epoch in range(5):
             for mode in ['Train', 'Eval']:
                 if mode == 'Train':
-                    self.net.enhance.train()
+                    self.net.nsn.train()
                     for item in train_loader:
                         loss_dict.update(self._enhance_batch(item))
                 else:
-                    self.net.enhance.eval()
+                    self.net.nsn.eval()
                     with torch.no_grad():
                         for item in test_loader:
                             loss_dict.update(self._enhance_batch(item))
-                
-                if self.plotter:
-                    for k, v in loss_dict.items():
-                        self.plotter.line(x=epoch, y=v.avg, win='Enahnce loss', legend=f'{mode} {k}')
 
                 time.update(item['label'].size(0))
                 loss = loss_dict['total'].avg
                 cur_lr = self.enhance_optimizer.param_groups[0]['lr']
                 self.logger.info(f'Enhance {mode} Epoch:{epoch}, loss:{loss:.3f}, lr:{cur_lr:.2e}, {time.avg:.2e}  seconds/batch')
         
-        self.net.enhance.requires_grad_(False)
-        self.net.backbone.requires_grad_(True)
-        self.net.filter.requires_grad_(True)
+        self.net.nsn.requires_grad_(False)
+        self.net.fsn.requires_grad_(True)
         return True
 
     def train(self):
@@ -202,8 +192,6 @@ class Train_Session(utils.Session):
     def test(self):
         self.net.load_state_dict(torch.load(os.path.join(self.log_dir, 'checkpoint.pkl')))
         self.net.eval()
-        if self.plotter:
-            self.plotter.text(f"Test @ {self.config['Data']['dataset']}", win=f"Test @ {self.log_dir}")
         with torch.no_grad():
             # test each scene
             for scene in self.config['Test']['scenes']:
@@ -218,29 +206,23 @@ class Train_Session(utils.Session):
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser()
-    args.add_argument('--config', type=str, default='DVSGesture_Pointnet')
+    args.add_argument('--config', type=str, default='DVSGesture_S2N')
     args.add_argument('--override', default=None, help='Arguments for overriding config')
     args = vars(args.parse_args())
     config = json.load(open(f"Tools/Config/{args['config']}.json", 'r'))
 
     if args['override'] is not None:
         override = args['override'].split(',')
-        for i in override:
-            key, item = i.split('=')
+        for item in override:
+            key, value = item.split('=')
             if '.' in key:
-                config[key.split[0].strip()][key.split[1].strip()] = item.strip()
-    # exit(0)
+                config[key.split('.')[0].strip()][key.split('.')[1].strip()] = value.strip()
 
     try:
         sess = Train_Session(config)
-        # sess.profile()
         sess.train()
     except BaseException:
         print(traceback.format_exc())
         shutil.rmtree(sess.log_dir)
     sess.test()
     sess.close()
-
-    # print model architecture
-    # net = Model.Net(imsize=(256, 256), in_size=2, num_class=8)
-    # print(net)

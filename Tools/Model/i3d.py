@@ -321,7 +321,6 @@ class I3D(nn.Module):
         x = self.logits(self.dropout(self.avg_pool(x)))
         if self._spatial_squeeze:
             logits = x.squeeze(-1).squeeze(-1).squeeze(-1)
-        # logits is batch X time X classes, which is what we want to work with
         return logits
 
     def extract_features(self, x):

@@ -87,7 +87,6 @@ class Test_Session(utils.Session):
             time.update(item['label'].size(0))
             class_pred.update(pred, item['label'])
        
-        # self.logger.info(f"{self.config['Data']['scene']} : loss:{loss.avg:.3f}, acc:{acc.avg:.1%}, {time.avg:.6f}  seconds/batch")
         return {'loss': loss.avg,
                 'acc':acc.avg,
                 'class_acc':class_pred.val,
@@ -113,28 +112,3 @@ if __name__ == '__main__':
     sess = Test_Session(config)
     for scene in ['fluorescent', 'fluorescent_led', 'natural', 'led', 'lab']:
         sess.test(scene)
-
-    # import h5py
-    # import pandas as pd
-    # from tqdm import tqdm
-
-    # dataset = h5py.File('Dataset/DVSGesture/C11W05.h5')
-    # samples = pd.read_csv('Dataset/DVSGesture/test.csv', delimiter='\t')
-    # light = 'fluorescent_led'
-    # samples = samples[samples['light'] == light]
-    # samples = samples[samples['label'] < 10]
-    # samples = samples.reset_index(drop=True)
-    # label_map = pd.read_csv('Dataset/DVSGesture/map.csv', delimiter='\t')
-    # pred = []
-    # lable = []
-    # for i in tqdm(range(len(samples)), ncols=80):
-    #     sample = samples.loc[i]
-    #     data = dataset[sample['light']][str(sample['label'])][sample['user']][sample['num']]
-    #     data = np.stack([data[p] for p in 'txyp'], axis=-1).astype(float)
-    #     pred.append(sess.test_data(data) == int(sample['label']))
-    # print(light, len(pred), np.sum(pred) / len(pred))
-    # sess.close()
-
-    # print model architecture
-    # net = Model.Net(imsize=(256, 256), in_size=2, num_class=8)
-    # print(net)

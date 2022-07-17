@@ -140,11 +140,6 @@ class L_noise(nn.Module):
         mean = self.avgpool(bool_enhance)
         mask = (around < 100 * mean) & (enhance > 0)
 
-        # mean_val = torch.mean(enhance[enhance > 0])
-        # around = F.conv2d(enhance, self.weight, padding=self.k // 2, groups=1).repeat(1, 2, 1, 1)
-        # # mask = torch.logical_and(around == 0, enhance > 0)
-        # mask = (around < (1e-5 * mean_val)) & (enhance > 0)
-        # noise = torch.pow(enhance[mask], 2)
         area = torch.sum(mask, dim=(2, 3))
         noise = torch.sum(enhance * mask, dim=(2, 3))
         return torch.mean(noise / area), mask
@@ -157,7 +152,6 @@ class L_exp(nn.Module):
     def __init__(self,patch_size):
         super(L_exp, self).__init__()
         self.avgpool = nn.AvgPool2d(patch_size)
-        # self.mean_val = mean_val
 
     def forward(self, raw, enhance, noise_mask):
         valid_mask = ~noise_mask & (enhance > 0)

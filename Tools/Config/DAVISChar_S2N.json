@@ -25,8 +25,7 @@
         "in_channels": 2,
         "nIter": 1,
         "noise": 1,
-        "enhance": true,
-        "enhance_checkpoint": "Log/Enhance/Zero_Enhance/10121851/checkpoint.pkl"
+        "enhance": true
     },
   
     "Train": {

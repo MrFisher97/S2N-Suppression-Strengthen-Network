@@ -7,14 +7,14 @@
         "scene": "lab",
         "__scene_": ["fluorescent_led", "fluorescent", "natural", "led", "lab", "all"],
         "num_samples": null, 
-        "__num_samples_": [1000],
+        "__num_samples": [1000],
         "enhance_samples": 500, 
-        "__enhance_samples_": [1000],
+        "__enhance_samples": [1000],
         "num_classes": 10,
         "form": "Clip",
         "num_point": 1024,
         "size": [16, 128, 128], 
-        "__size_": "CxTxHxW",
+        "__size": "TxHxW",
         "split_by": "time", 
         "ord": "txyp"
     },
@@ -22,11 +22,7 @@
     "Model": {
         "name": "i3d",
         "__name": ["i3d", "pointnet2_msg", "S2N_3D", "S2N_2D", "resnet34", "resnet3d", "gait2d", "gait3d"],
-        "in_channels": 2,
-        "nIter": 1,
-        "noise": 1,
-        "enhance": true,
-        "enhance_checkpoint": "Log/Enhance/Zero_Enhance/10121851/checkpoint.pkl"
+        "in_channels": 2
     },
 
     "Train": {

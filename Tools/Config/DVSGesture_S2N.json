@@ -5,16 +5,16 @@
         "data_file": "C11W05.h5",
         "map_file": "map.csv",
         "scene": "lab",
-        "__scene_": ["fluorescent_led", "fluorescent", "natural", "led", "lab", "all"],
+        "__scene": ["fluorescent_led", "fluorescent", "natural", "led", "lab", "all"],
         "num_samples": null, 
-        "__num_samples_": [1000],
+        "__num_samples": [1000],
         "enhance_samples": 500, 
-        "__enhance_samples_": [1000],
+        "__enhance_samples": [1000],
         "num_classes": 10,
         "form": "Clip",
         "num_point": 1024,
-        "size": [8, 128, 128], 
-        "__size_": "CxTxHxW",
+        "size": [16, 128, 128], 
+        "__size": "TxHxW",
         "split_by": "time", 
         "ord": "txyp"
     },
@@ -25,8 +25,7 @@
         "in_channels": 2,
         "nIter": 1,
         "noise": 1,
-        "enhance": true,
-        "enhance_checkpoint": "Log/Enhance/Zero_Enhance/10121851/checkpoint.pkl"
+        "enhance": true
     },
 
     "Train": {
@@ -34,7 +33,7 @@
         "lr": 1.0e-4,
         "weight_decay": 1.0e-4,
         "num_epochs": 25,
-        "batch_size": 32,
+        "batch_size": 16,
         "shuffle": true,
         "num_workers": 4,
         "drop_last": true
@@ -42,7 +41,7 @@
 
     "Test": {
         "file_list": "test.csv",
-        "batch_size": 32,
+        "batch_size": 16,
         "scenes": ["fluorescent_led", "fluorescent", "natural", "led", "lab", "all"]
     },
 

@@ -23,7 +23,7 @@ class Session():
         self.config['timestamp'] = timestamp
 
         if recorder['save_log']:
-            self.log_dir = os.path.join(recorder['log_dir'], timestamp)
+            self.log_dir = os.path.join(recorder['log_dir'], self.config['Data']['dataset'] + '_' + self.config['Model']['name'] + '_' + timestamp)
             os.makedirs(self.log_dir, exist_ok=True)
             log_file = os.path.join(self.log_dir, 'logger.txt')
             fh = logging.FileHandler(filename=log_file)
