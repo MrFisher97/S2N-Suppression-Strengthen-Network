@@ -8,6 +8,8 @@ This repository contains the source code associated with S2N: Suppression-Streng
 
 ### Dataset
 
+[URL](https://rec.ustc.edu.cn/share/a31ccf20-06a4-11ed-8ef3-3b6b7820b51e)
+
 ### Training
 
 ### Pre-trained Model
