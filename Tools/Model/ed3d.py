@@ -128,7 +128,7 @@ class DCD_Conv3d(nn.Module):
             else:    
                 out_diff = F.conv3d(input=x, weight=kernel_diff, bias=self.conv3d.bias, stride=self.conv3d.stride,
                                 padding=0, dilation=self.conv3d.dilation, groups=self.conv3d.groups)
-            out = out_norm - 0.5 * out_diff
+            out = out_norm - 0.3 * out_diff
         else:
             out = out_norm
 

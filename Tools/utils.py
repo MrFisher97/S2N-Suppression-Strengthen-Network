@@ -65,13 +65,14 @@ class Session():
         drop_last = self.config[mode].get('drop_last', False)
         form = self.config['Data'].get('form', 'Voxel')
         self.config['Data']['file_list'] = self.config[mode]['file_list']
-        dataset = getattr(importlib.import_module("Tools.Dataset.h5_loader"), form)(self.config['Data'])
+        dataset = getattr(importlib.import_module("Tools.Dataload.h5_loader"), form)(self.config['Data'])
         dataset.samples = dataset.samples[:num_samples]
         loader = DataLoader(dataset, 
                             batch_size=batch_size,
                             shuffle=shuffle, 
                             num_workers=num_workers, 
-                            drop_last=drop_last,)
+                            drop_last=drop_last,
+                            collate_fn=dataset.collate_fn)
 
         data_file = self.config['Data'].get('data_file')
         scene = self.config['Data'].get('scene', 'all')

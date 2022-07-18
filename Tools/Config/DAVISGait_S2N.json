@@ -16,7 +16,9 @@
         "size": [8, 240, 240], 
         "__clip_size": "TxHxW",
         "split_by": "time", 
-        "ord": "txyp"
+        "ord": "txyp",
+        "reshape": true,
+        "reshape_method": "no"
     },
   
     "Model": {
