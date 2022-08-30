@@ -18,19 +18,18 @@ import Tools.utils as utils
 class Train_Session(utils.Session):
     def _build_model(self):
         super()._build_model()
-        model_config = self.config['Model']
         train_config = self.config['Train']
 
         # load model
         param_list = []
-        self.net = importlib.import_module(f"Tools.Model.{model_config['name']}").Model(self.config)
+        self.net = importlib.import_module(f"Tools.Model.{self.config['Model']['name']}").Model(**self.config['Model'])
         self.net = self.net.to(self.device)
         param_list = [
             {'params':self.net.parameters(), 'lr':train_config['lr'], 'weight_decay':train_config['weight_decay']},]
 
         # load the enhance subnet(NSN)
-        if model_config.get('enhance', False):
-            self.enhance_criterion = importlib.import_module('Tools.Model.Enhance.NSN').NSN_Loss()
+        if self.config['Model'].get('enhance', False):
+            self.enhance_criterion = importlib.import_module('Tools.Model.Enhance.NSN').NSN_Loss(**self.config['Model'])
             self.enhance_optimizer = torch.optim.Adam(self.net.nsn.parameters(), lr=1e-2, weight_decay=1e-4)
             param_list = [
                     {'params':self.net.nsn.parameters(), 'lr':train_config['lr'], 'weight_decay':train_config['weight_decay']},
@@ -43,7 +42,7 @@ class Train_Session(utils.Session):
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.2, patience=2, min_lr=1e-5)
       
         params = np.sum([p.numel() for p in self.net.parameters()]).item()
-        self.logger.info(f"Loaded {model_config['name']} parameters : {params:.3e}")
+        self.logger.info(f"Loaded {self.config['Model']['name']} parameters : {params:.3e}")
 
     def _batch(self, item):
         with autocast():
@@ -52,13 +51,14 @@ class Train_Session(utils.Session):
             score = output['score'] if isinstance(output, dict) else output
         loss = self.criterion(score, label)
 
-        pred = score.max(1)[1]
+        pred = score.argmax(1)
         if self.net.training:
             # loss.backward()
+            # self.optimizer.step()
+
             self.scaler.scale(loss).backward()
             self.scaler.step(self.optimizer)
             self.scaler.update()
-            # self.optimizer.step()
             self.optimizer.zero_grad()
 
         return {'loss':loss.cpu(), 'pred':pred.cpu()}
@@ -118,7 +118,7 @@ class Train_Session(utils.Session):
         loss_dict = utils.Param_Dict()
         time = utils.Time_Detector()
 
-        for epoch in range(5):
+        for epoch in range(10):
             for mode in ['Train', 'Eval']:
                 if mode == 'Train':
                     self.net.nsn.train()
@@ -165,7 +165,6 @@ class Train_Session(utils.Session):
 
             self.net.eval()
             with torch.no_grad():
-                self.cur_scene = self.config['Data']['scene']
                 eval_result = self._epoch(eval_loader, epoch)
 
             # record the result
@@ -206,7 +205,7 @@ class Train_Session(utils.Session):
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser()
-    args.add_argument('--config', type=str, default='DVSGesture_S2N')
+    args.add_argument('--config', type=str, default='DAVISGait_S2N')
     args.add_argument('--override', default=None, help='Arguments for overriding config')
     args = vars(args.parse_args())
     config = json.load(open(f"Tools/Config/{args['config']}.json", 'r'))

@@ -5,7 +5,7 @@ import numpy as np
 
 class DCD_Conv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1,
-                 padding=1, dilation=1, groups=1, bias=False, theta=0.3):
+                 padding=1, dilation=1, groups=1, bias=False, theta=0.1):
 
         super(DCD_Conv2d, self).__init__() 
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)
@@ -18,7 +18,7 @@ class DCD_Conv2d(nn.Module):
         kernel_diff = self.conv.weight.sum((2, 3))
         kernel_diff = kernel_diff[:, :, None, None]
 
-        pool_pad = list(map(lambda x: x // 2, self.kernel_size))
+        pool_pad = list(map(lambda x: x // 2, self.kernel_shape))
         mask = F.avg_pool2d((x > 0).to(torch.float16), kernel_size=self.kernel_shape,
                         padding=pool_pad, stride=1)                       
 
@@ -61,7 +61,7 @@ class Model(nn.Module):
             nn.ReLU(),
             ResidualBlock(512, 512),
             ResidualBlock(512, 512),
-            nn.AdaptiveAvgPool2d((16, 16)),
+            nn.AdaptiveAvgPool2d((14)),
         )
 
         self.classifier = nn.Sequential(
@@ -70,7 +70,7 @@ class Model(nn.Module):
             # nn.ReLU(inplace=True),
             # nn.Dropout(),
             # nn.Linear(128,10),
-            nn.Linear(16*16*512, 1024),
+            nn.Linear(14*14*512, 1024),
             nn.ReLU(inplace=True),
             nn.BatchNorm1d(1024),
             nn.Dropout(),

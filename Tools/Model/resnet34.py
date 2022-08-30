@@ -213,10 +213,8 @@ def resnet34(pretrained=False, progress=True, **kwargs):
                    **kwargs)
 
 class Model(nn.Module):
-    def __init__(self, config):
+    def __init__(self, num_classes=10, in_channels=2, **kwargs):
         super(Model, self).__init__()
-        num_classes = config['Data'].get('num_classes', 10)
-        in_channels = config['Model'].get('in_channels', 2)
         self.backbone = resnet34(num_classes=num_classes, in_channels=in_channels)
 
     def forward(self, x):

@@ -22,7 +22,7 @@ class Test_Session(utils.Session):
 
     def _build_model(self):
         super()._build_model()
-        self.net = importlib.import_module(f"Tools.Model.{self.config['Model']['name']}").Model(self.config)
+        self.net = importlib.import_module(f"Tools.Model.{self.config['Model']['name']}").Model(**self.config['Model'])
         self.net = self.net.to(self.device)
         self.net.load_state_dict(torch.load(os.path.join(self.config['log_dir'], 'checkpoint.pkl')))
 
@@ -68,7 +68,8 @@ class Test_Session(utils.Session):
             event = self.generate_clip(event, size=(2, 16, 128, 128), ord='txyp')
             event = torch.tensor(event[None, ...]).to(self.device)
             output = self.net(event)
-        pred = output.argmax().item()
+            score = output['score'] if isinstance(output, dict) else output
+        pred = score.argmax(1).item()
         return pred
 
     def test_dataset(self, data_loader):
@@ -103,12 +104,13 @@ class Test_Session(utils.Session):
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser()
-    args.add_argument('--config', type=str, default='DVSGesture_i3d')
-    args.add_argument('--log_dir', type=str, default='Output_2/i3d_07101239')
+    args.add_argument('--config', type=str, default='DAVISGait_S2N')
+    args.add_argument('--log_dir', type=str, default='Output/DAVISGait_S2N_2D_08292104')
     args = args.parse_args()
     config = json.load(open(f"Tools/Config/{args.config}.json", 'r'))
     config['log_dir'] = args.log_dir
     # exit(0)
     sess = Test_Session(config)
-    for scene in ['fluorescent', 'fluorescent_led', 'natural', 'led', 'lab']:
-        sess.test(scene)
+    sess.test('l64')
+    # for scene in ['fluorescent', 'fluorescent_led', 'natural', 'led', 'lab']:
+    #     sess.test(scene)

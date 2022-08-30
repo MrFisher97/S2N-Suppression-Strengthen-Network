@@ -55,6 +55,7 @@ class Session():
         if torch.cuda.is_available():
             torch.cuda.set_device(0)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.config['Model'].update(self.config['Data'])
         # self.device = torch.device("cpu")
 
     def _load_data(self, mode, num_samples=None):

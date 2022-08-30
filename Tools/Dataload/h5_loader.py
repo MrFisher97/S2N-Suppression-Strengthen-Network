@@ -51,50 +51,43 @@ class Base_Dataset(data_utl.Dataset):
     def __getitem__(self, index):
         sample = self.samples.loc[index]
         if self.dataset == 'DVSGesture':
-            data = self.data[sample['light']][str(sample['label'])][sample['user']][sample['num']]
+            data = self.data[sample['light']][str(sample['label'])][sample['user']][sample['num']][:]
         elif self.dataset in ['DAVISGait', 'DAVISChar']:
-            data = self.data[sample['light']][sample['obj']][sample['num']]
+            data = self.data[sample['light']][sample['obj']][sample['num']][:]
         
-        data = np.stack([data[p] for p in self.ord], axis=-1).astype(float)
+        data['t'] -= data['t'][0]
+        data['t'] /= data['t'][-1]
         
         if self.cfg.get('reshape', False):
-            event = self.reshape_event(event, self.cfg, self.ord, senseor_size=SENSOR_SIZE[self.dataset])
+            center = (SENSOR_SIZE[self.dataset][0] // 2, SENSOR_SIZE[self.dataset][1] // 2)
+            data = data[data['x'] > (center[0] - self.size[-2] // 2)]
+            data = data[data['x'] < (center[0] + self.size[-2] // 2)]
+            data = data[data['y'] > (center[1] - self.size[-1] // 2)]
+            data = data[data['y'] < (center[1] + self.size[-1] // 2)]
+            data['x'] -= (center[0] - self.size[-2] // 2)
+            data['y'] -= (center[1] - self.size[-1] // 2)
         
-        data[:, 0] = preprocessing.minmax_scale(data[:, 0])
         return data, sample['label']
-
+    
     @staticmethod
-    def reshape_event(event, cfg, ord='txyp', senseor_size=(128, 128)):
-        method = cfg.get('reshape_method', 'no')
-        new_size = cfg.get('size', (224, 224))[-2:]
-        if method == 'sample':
-            sampling_ratio = np.pord(new_size) / np.pord(senseor_size)
-            new_len = int(sampling_ratio * len(event))
-            idx_arr = np.arange(len(event))
-            sampled_arr = np.random.choice(idx_arr, size=new_len, replace=False)
-            event = event[np.sort(sampled_arr)]
-
-        event[:, ord.find('x')] *= (new_size[0] / senseor_size[0])
-        event[:, ord.find('y')] *= (new_size[1] / senseor_size[1])
-
-        if method == 'unique':
-            coords = event[:, (ord.find('x'), ord.find('y'))].astype(np.int64)
-            timestamp = (event[:,  ord.find('t')] * TIME_SCALE).astype(np.int64)
-            min_time = timestamp[0]
-            timestamp -= min_time
-
-            key = coords[:, 0] + coords[:, 1] * new_size[1] + timestamp * np.prod(new_size)
-            _, unique_idx = np.unique(key, return_index=True)
-            event = event[unique_idx]
-
-        event[:, (ord.find('x'), ord.find('y'))] = event[:, (ord.find('x'), ord.find('y'))].astype(np.int64)
-
-        return event
+    def collate_fn(batch):
+        """
+        Collects the different event representations and stores them together in a dictionary.
+        """
+        batch_dict = {}
+        events = []
+        labels = []
+        for i, d in enumerate(batch):
+            events.append(d['data'])
+            labels.append(d['label'])
+        batch_dict['data'] = torch.stack(events, 0)
+        batch_dict['label'] = torch.tensor(labels)
+        return batch_dict
 
     def __len__(self):
         return len(self.samples)
 
-class Clip(Base_Dataset):
+class Acc_Cnt_Clip(Base_Dataset):
     def __getitem__(self, index):
         """
         Args:
@@ -104,9 +97,10 @@ class Clip(Base_Dataset):
             tuple: (image, target) where target is class_index of the target class.
         """
         event, label = super().__getitem__(index)
- 
-        t, x, y, p = np.split(event[:, (self.ord.find("t"), self.ord.find("x"), self.ord.find("y"), self.ord.find("p"))], 4, axis=1)
-        T, H, W =  self.size
+        T, H, W = self.size
+        
+        t, x, y, p = event["t"], event["x"], event["y"], event["p"]
+        x = np.array(x, dtype=np.long)
 
         if self.split_by == 'time':
             t = t * 0.99 * T
@@ -132,21 +126,39 @@ class Clip(Base_Dataset):
 
         return {'data':torch.tensor(clip, dtype=torch.float),
                 'label':label}
-    
-    @staticmethod
-    def collate_fn(batch):
+
+class Acc_Cnt_Image(Base_Dataset):
+    def __getitem__(self, index):
         """
-        Collects the different event representations and stores them together in a dictionary.
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target) where target is class_index of the target class.
         """
-        batch_dict = {}
-        events = []
-        labels = []
-        for i, d in enumerate(batch):
-            events.append(d['data'])
-            labels.append(d['label'])
-        batch_dict['data'] = torch.stack(events, 0)
-        batch_dict['label'] = torch.tensor(labels)
-        return batch_dict
+        event, label = super().__getitem__(index)
+ 
+        x, y, p = event["x"], event["y"], event["p"]
+        H, W =  self.size
+        
+        x = x.astype(np.uint32)
+        y = y.astype(np.uint32)
+        p = p.astype(bool)
+
+        img = np.zeros((2, H * W))
+        np.add.at(img[0], x[p] + W * y[p], 1.)
+        np.add.at(img[1], x[~p] + W * y[~p], 1.)
+
+        img = img.reshape((2, H, W))
+
+        # normalize along the space dimension
+        img = np.divide(img, 
+                        np.amax(img, axis=(-2, -1), keepdims=True),
+                        out=np.zeros_like(img),
+                        where=img!=0)
+
+        return {'data':torch.as_tensor(img, dtype=torch.float),
+                'label':label}
 
 class Point(Base_Dataset):
     def __getitem__(self, index):

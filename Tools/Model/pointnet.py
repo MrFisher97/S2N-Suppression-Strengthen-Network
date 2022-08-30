@@ -40,9 +40,9 @@ class get_loss(torch.nn.Module):
         return loss
 
 class Model(nn.Module):
-    def __init__(self, config):
+    def __init__(self, num_classes=10, **kwargs):
         super().__init__()
-        self.model = Pointnet(num_classes=config["Data"]["num_classes"])
+        self.model = Pointnet(num_classes=num_classes)
 
     def forward(self, x):
         x = x.transpose(2, 1)[:, :3]

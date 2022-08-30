@@ -328,11 +328,3 @@ class I3D(nn.Module):
             if end_point in self.end_points:
                 x = self._modules[end_point](x)
         return self.avg_pool(x)
-
-class Model(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.model = I3D(config)
-    
-    def forward(self, x):
-        return self.model(x)

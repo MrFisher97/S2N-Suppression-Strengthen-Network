@@ -5,13 +5,10 @@ from Enhance import Filter, NSN
 import ed2d as backbone
 
 class Model(nn.Module):
-    def __init__(self, config):
+    def __init__(self, num_classes=10, in_channels=2, nIter=3, enhance=False, **kwargs):
         super(Model, self).__init__()
-        num_classes = config['Data'].get('num_classes', 10)
-        in_channels = config['Model'].get('in_channels', 2)
-        nIter = config['Model'].get('nIter', 3)
 
-        self.nsn = NSN.Model(scale_factor=1, in_channels=in_channels) if config['Model']['enhance'] else None
+        self.nsn = NSN.Model(scale_factor=1, in_channels=in_channels) if enhance else None
         
         self.fsn = nn.ModuleDict(
             {
@@ -24,7 +21,7 @@ class Model(nn.Module):
 
     def forward(self, x):
         enhance = x
-        if self.enhance:
+        if self.nsn:
             with torch.no_grad():
                 enhance, _ = self.nsn(x)
         x = self.fsn['EAM'](enhance)

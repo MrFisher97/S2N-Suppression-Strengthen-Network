@@ -23,10 +23,8 @@ class ResidualBlock(nn.Module):
         return out
 
 class Model(nn.Module):
-    def __init__(self, config):
+    def __init__(self, num_classes=10, in_channels=2, **kwargs):
         super().__init__()
-        num_classes = config['Data'].get('num_classes', 10)
-        in_channels = config['Model'].get('in_channels', 2)
         
         self.features = nn.Sequential(
             nn.Conv2d(in_channels, 64, kernel_size=3, stride=2, padding=1),

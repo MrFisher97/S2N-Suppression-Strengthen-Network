@@ -4,13 +4,10 @@ import ed3d as backbone
 from Enhance import Filter, NSN
 
 class Model(nn.Module):
-    def __init__(self, config):
+    def __init__(self, num_classes=10, in_channels=2, nIter=1, enhance=False, **kwargs):
         super(Model, self).__init__()
-        num_classes = config['Data'].get('num_classes', 10)
-        in_channels = config['Model'].get('in_channels', 2)
-        nIter = config['Model'].get('nIter', 1)
 
-        self.nsn = NSN.Model(scale_factor=1, in_channels=in_channels) if config['Model']['enhance'] else None
+        self.nsn = NSN.Model(scale_factor=1, in_channels=in_channels) if enhance else None
         self.fsn = nn.ModuleDict(
             {
                 'EAM': Filter.Anistropic_Diffusion(in_channels=in_channels, kernel_size=1, sigma=1, nIter=nIter),

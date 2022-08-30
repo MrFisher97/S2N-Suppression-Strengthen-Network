@@ -11,7 +11,7 @@
         "enhance_samples": 500, 
         "__enhance_samples": [1000],
         "num_classes": 36,
-        "form": "Clip",
+        "form": "Acc_Cnt_Clip",
         "num_point": null,
         "size": [8, 240, 240], 
         "__size": "TxHxW",
